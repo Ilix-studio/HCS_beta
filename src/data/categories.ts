@@ -1,0 +1,26 @@
+import type { Category } from '../types'
+
+export const categories: Category[] = [
+  { id: 'tablets', name: 'Tablets', group: 'medicine' },
+  { id: 'capsules', name: 'Capsules', group: 'medicine' },
+  { id: 'syrups', name: 'Syrups', group: 'medicine' },
+  { id: 'antibiotics', name: 'Antibiotics', group: 'medicine' },
+  { id: 'pain', name: 'Pain Relief', group: 'medicine' },
+  { id: 'vitamins', name: 'Vitamins & Supplements', group: 'medicine' },
+  { id: 'diabetes', name: 'Diabetes Care', group: 'medicine' },
+  { id: 'cardio', name: 'Cardiovascular', group: 'medicine' },
+  { id: 'derma', name: 'Dermatology', group: 'medicine' },
+  { id: 'firstaid-med', name: 'First-Aid Medicines', group: 'medicine' },
+  { id: 'firstaid-kits', name: 'First Aid Kits', group: 'supply' },
+  { id: 'plasters', name: 'Plasters', group: 'supply' },
+  { id: 'cotton', name: 'Cotton Wool', group: 'supply' },
+  { id: 'masks', name: 'Surgical Masks', group: 'supply' },
+  { id: 'stethoscopes', name: 'Stethoscopes', group: 'supply' },
+  { id: 'oxygen', name: 'Oxygen Masks', group: 'supply' },
+  { id: 'thermometers', name: 'Thermometers', group: 'supply' },
+  { id: 'bp', name: 'Blood Pressure Monitors', group: 'supply' },
+  { id: 'scales', name: 'Weighing Scales', group: 'supply' },
+  { id: 'bandages', name: 'Compression Bandages', group: 'supply' },
+  { id: 'pregnancy', name: 'Pregnancy Test Kits', group: 'supply' },
+  { id: 'resus', name: 'Resuscitation Equipment', group: 'supply' },
+]

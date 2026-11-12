@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-50: #eef3fb;
+  --color-navy-100: #d9e4f5;
+  --color-navy-600: #1d3f7a;
+  --color-navy-700: #163266;
+  --color-navy-800: #102650;
+  --color-navy-900: #0b1b3a;
+  --color-teal-50: #e8f8f5;
+  --color-teal-100: #c6efe7;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer base {
+  :root { --chart-bar: #163266; }
+  .dark { --chart-bar: #5b8def; }
+}
+
+body {
+  margin: 0;
+  background: var(--page-bg, #f3f5f9);
+  color: var(--color-slate-800);
+  font-family: var(--font-sans);
+}
+
+@keyframes scan {
+  0% { top: 0 }
+  100% { top: 100% }
+}
+.animate-scan { animation: scan 1.6s linear infinite alternate; }
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+.animate-pop { animation: pop .35s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop, .animate-scan { animation: none; }
+}
+
+/* ---- Dark theme: the slate scale is inverted; white surfaces and brand tints are remapped ---- */
+.dark {
+  --page-bg: #0b1220;
+  --surface: #111b2e;
+  --color-slate-50: #16223a;
+  --color-slate-100: #1b2a45;
+  --color-slate-200: #263652;
+  --color-slate-300: #34476b;
+  --color-slate-400: #7d8fb0;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #aab6cc;
+  --color-slate-700: #cbd5e1;
+  --color-slate-800: #e2e8f0;
+  --color-slate-900: #f1f5f9;
+}
+.dark .bg-white { background-color: var(--surface); }
+.dark .bg-white\/90, .dark .bg-white\/95 { background-color: color-mix(in oklab, var(--surface) 90%, transparent); }
+.dark .text-navy-900, .dark .text-navy-800, .dark .text-navy-700, .dark .text-navy-600 { color: #e2e8f0; }
+.dark .text-teal-700, .dark .text-teal-600 { color: #5eead4; }
+.dark .bg-navy-50, .dark .bg-navy-100 { background-color: #1b2a45; }
+.dark .bg-teal-50, .dark .bg-teal-100 { background-color: #0f2f33; }
+.dark .border-navy-100 { border-color: #263652; }
+.dark .bg-navy-700 { background-color: #2a5298; }
+.dark .hover\:bg-navy-800:hover { background-color: #3463b3; }
+.dark .bg-emerald-100 { background-color: #0d3b2e; } .dark .text-emerald-800, .dark .text-emerald-700 { color: #6ee7b7; }
+.dark .bg-amber-100, .dark .bg-amber-50 { background-color: #3d2f0b; } .dark .text-amber-800, .dark .text-amber-900, .dark .text-amber-700 { color: #fcd34d; }
+.dark .bg-red-100 { background-color: #451a1a; } .dark .text-red-800 { color: #fca5a5; }
+.dark .border-amber-200, .dark .border-amber-300 { border-color: #7c5a12; }
+.dark .border-emerald-200 { border-color: #14532d; } .dark .bg-emerald-50 { background-color: #0d3b2e; }
+.dark .bg-red-50 { background-color: #3b1717; }
+.dark .shadow-sm, .dark .shadow-md, .dark .shadow-lg, .dark .shadow-xl { --tw-shadow-color: rgb(0 0 0 / 0.5); }
+.dark .bg-slate-900\/50 { background-color: rgb(0 0 0 / 0.6); }
+.dark input, .dark select, .dark textarea { color: var(--color-slate-800); }
+.dark input::placeholder, .dark textarea::placeholder { color: var(--color-slate-400); }

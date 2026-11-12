@@ -1,0 +1,137 @@
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Download, FilePlus2, Plus, Printer, Search, Trash2 } from 'lucide-react'
+import { addNotification, addPrescription, useAppDispatch, useAppSelector } from '../store'
+import { doctors } from '../data/doctors'
+import { patients } from '../data/patients'
+import { DEMO_TODAY, downloadText, formatDate, manufacturerName, uid } from '../lib/utils'
+import { useManufacturers, useProducts, useSession, useToast } from '../lib/hooks'
+import type { Prescription, PrescriptionMedicine, Product } from '../types'
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, StatCard, Textarea } from '../components/ui'
+
+const useDoctor = () => {
+  const { doctorId } = useSession()
+  return doctors.find((d) => d.id === doctorId) ?? doctors[0]
+}
+
+export function DoctorDashboard() {
+  const doc = useDoctor()
+  const mine = useAppSelector((s) => s.prescriptions).filter((p) => p.doctorId === doc.id)
+  const month = mine.filter((p) => p.date.startsWith(DEMO_TODAY.slice(0, 7)))
+  const recentPatients = [...new Set(mine.map((p) => p.patientId))].map((id) => patients.find((p) => p.id === id)!).filter(Boolean)
+  return (
+    <div>
+      <PageHeader title={doc.name} subtitle={`${doc.specialty} · Reg. ${doc.registration} (mock)`} actions={<Link to="/doctor/prescriptions/new"><Button><FilePlus2 className="h-4 w-4" />Create prescription</Button></Link>} />
+      <div className="mb-6 grid gap-4 sm:grid-cols-3"><StatCard label="Total prescriptions" value={mine.length} /><StatCard label="This month" value={month.length} /><StatCard label="Patients" value={recentPatients.length} /></div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card><h2 className="mb-3 font-semibold text-navy-900">Recent patients</h2>
+          {recentPatients.length === 0 ? <p className="text-sm text-slate-500">No patients yet.</p> : <ul className="divide-y divide-slate-100 text-sm">{recentPatients.map((p) => <li key={p.id} className="py-2"><strong>{p.name}</strong> <span className="text-slate-500">· {p.id} · {p.age}y {p.gender}</span></li>)}</ul>}</Card>
+        <Card><h2 className="mb-3 font-semibold text-navy-900">Recent prescriptions</h2>
+          {mine.length === 0 ? <p className="text-sm text-slate-500">No prescriptions yet.</p> : <ul className="divide-y divide-slate-100 text-sm">{mine.slice(0, 6).map((r) => <li key={r.id} className="py-2"><div className="font-medium">{patients.find((p) => p.id === r.patientId)?.name} <span className="font-normal text-slate-500">· {formatDate(r.date)}</span></div><div className="text-slate-500">{r.diagnosis} — {r.medicines.map((m) => m.name).join(', ')}</div></li>)}</ul>}</Card>
+      </div>
+    </div>
+  )
+}
+
+const rxText = (rx: Prescription, doc: (typeof doctors)[number]) => [
+  'DIGITAL PRESCRIPTION - DEMO ONLY, NOT LEGALLY VALID', '', `${doc.name} (${doc.specialty})`, `Reg. No: ${doc.registration} (mock)`, doc.clinic, '',
+  `Patient: ${patients.find((p) => p.id === rx.patientId)?.name} (${rx.patientId})`, `Date: ${formatDate(rx.date)}`, `Diagnosis: ${rx.diagnosis}`, '',
+  ...rx.medicines.map((m, i) => `${i + 1}. ${m.name} ${m.strength} - ${m.dosage}, ${m.frequency}, ${m.duration}, qty ${m.quantity}`), '', `Notes: ${rx.notes || '-'}`, '', '[Digital signature placeholder]',
+].join('\n')
+
+export function PrescriptionPreview({ rx }: { rx: Prescription }) {
+  const doc = doctors.find((d) => d.id === rx.doctorId) ?? doctors[0]
+  const patient = patients.find((p) => p.id === rx.patientId)
+  return (
+    <div className="rounded-lg border border-slate-300 bg-white p-6 text-sm print:border-0" id="rx-preview">
+      <div className="flex justify-between border-b-2 border-navy-700 pb-3"><div><h2 className="text-lg font-bold text-navy-800">{doc.name}</h2><p>{doc.specialty}</p><p className="text-xs text-slate-500">Reg. No: {doc.registration} (mock)</p></div><div className="text-right text-xs text-slate-500"><p>{doc.clinic}</p><p>Date: {formatDate(rx.date)}</p></div></div>
+      <div className="grid grid-cols-2 gap-2 py-3"><div><span className="text-slate-500">Patient:</span> <strong>{patient?.name}</strong> ({patient?.id})</div><div><span className="text-slate-500">Age/Sex:</span> {patient?.age} / {patient?.gender}</div><div className="col-span-2"><span className="text-slate-500">Diagnosis:</span> {rx.diagnosis}</div></div>
+      <div className="text-2xl font-serif text-navy-700">℞</div>
+      <ol className="my-2 list-decimal space-y-2 pl-6">{rx.medicines.map((m) => <li key={m.id}><strong>{m.name}</strong> {m.strength}<div className="text-slate-600">{m.dosage} · {m.frequency} · {m.duration} · Qty {m.quantity}</div></li>)}</ol>
+      {rx.notes && <p className="mt-3"><span className="text-slate-500">Clinical notes:</span> {rx.notes}</p>}
+      <div className="mt-8 flex items-end justify-between"><p className="max-w-xs text-[11px] text-slate-400">Demo document generated by a prototype. Not a legally valid prescription.</p><div className="w-44 border-t border-slate-400 pt-1 text-center text-xs text-slate-500">Digital signature (placeholder)</div></div>
+    </div>
+  )
+}
+
+export function NewPrescription() {
+  const doc = useDoctor()
+  const dispatch = useAppDispatch()
+  const toast = useToast()
+  const products = useProducts()
+  const mfrs = useManufacturers()
+  const [pq, setPq] = useState('')
+  const [patientId, setPatientId] = useState('')
+  const [mq, setMq] = useState('')
+  const [meds, setMeds] = useState<PrescriptionMedicine[]>([])
+  const [diagnosis, setDiagnosis] = useState('')
+  const [notes, setNotes] = useState('')
+  const [preview, setPreview] = useState<Prescription | null>(null)
+  const [issued, setIssued] = useState(false)
+
+  const patientHits = pq.trim() ? patients.filter((p) => `${p.name} ${p.id}`.toLowerCase().includes(pq.toLowerCase())) : []
+  const selected = patients.find((p) => p.id === patientId)
+  const medHits = useMemo(() => {
+    const q = mq.trim().toLowerCase()
+    if (!q) return []
+    return products.filter((p) => [p.brand, p.generic, p.composition, p.strength, p.dosageForm, manufacturerName(p.manufacturerId, mfrs)].some((s) => s.toLowerCase().includes(q))).slice(0, 6)
+  }, [mq, products, mfrs])
+
+  const addMed = (p: Product) => {
+    if (meds.some((m) => m.productId === p.id)) return toast('info', `${p.brand} is already on the prescription`)
+    setMeds([...meds, { id: uid('m'), productId: p.id, name: p.brand, strength: p.strength === '—' ? '' : p.strength, dosage: '', frequency: '', duration: '', quantity: 1 }])
+    setMq('')
+  }
+  const setMed = (id: string, k: keyof PrescriptionMedicine, v: string) => setMeds(meds.map((m) => (m.id === id ? { ...m, [k]: k === 'quantity' ? Math.max(1, Number(v) || 1) : v } : m)))
+
+  const build = (): Prescription | null => {
+    if (!selected) { toast('error', 'Select a patient first.'); return null }
+    if (!diagnosis.trim()) { toast('error', 'Enter a diagnosis.'); return null }
+    if (meds.length === 0) { toast('error', 'Add at least one medicine.'); return null }
+    const bad = meds.find((m) => !m.dosage.trim() || !m.frequency.trim() || !m.duration.trim())
+    if (bad) { toast('error', `Complete dosage, frequency and duration for ${bad.name}.`); return null }
+    return { id: uid('RX'), patientId: selected.id, doctorId: doc.id, doctorName: doc.name, date: DEMO_TODAY, diagnosis, notes, medicines: meds, status: 'verified', source: 'doctor', validUntil: '2027-02-12' }
+  }
+  const openPreview = () => { const rx = build(); if (rx) setPreview(rx) }
+  const issue = () => {
+    if (!preview) return
+    dispatch(addPrescription(preview))
+    dispatch(addNotification({ id: uid('n'), userId: preview.patientId, type: 'prescription', title: 'New prescription', message: `${doc.name} issued you a new prescription.`, date: DEMO_TODAY, read: false, link: '/prescriptions' }))
+    setIssued(true); toast('success', 'Prescription issued to patient')
+  }
+
+  if (issued && preview) return (
+    <div className="space-y-4"><PageHeader title="Prescription issued" actions={<><Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button><Button onClick={() => { downloadText(rxText(preview, doc), `${preview.id}.txt`); toast('success', 'Prescription downloaded (demo text file)') }}><Download className="h-4 w-4" />Download</Button></>} />
+      <PrescriptionPreview rx={preview} /><Link to="/doctor/dashboard"><Button variant="outline">Back to dashboard</Button></Link></div>
+  )
+
+  return (
+    <div>
+      <PageHeader title="Create Prescription" subtitle="Demo editor — prescriptions created here are not legally valid." />
+      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <div className="space-y-4">
+          <Card><h2 className="mb-3 font-semibold text-navy-900">1. Patient</h2>
+            {selected ? <div className="flex items-center justify-between text-sm"><span><strong>{selected.name}</strong> · {selected.id} · {selected.age}y {selected.gender}</span><Button size="sm" variant="ghost" onClick={() => setPatientId('')}>Change</Button></div> : (
+              <div><div className="relative"><Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" /><Input className="pl-9" placeholder="Search patient by name or ID (e.g. pt1)" aria-label="Search patient" value={pq} onChange={(e) => setPq(e.target.value)} /></div>
+                {pq && <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200 text-sm">{patientHits.length === 0 && <li className="p-3 text-slate-500">No matching patients.</li>}{patientHits.map((p) => <li key={p.id}><button className="w-full cursor-pointer p-3 text-left hover:bg-slate-50" onClick={() => { setPatientId(p.id); setPq('') }}>{p.name} <span className="text-slate-500">· {p.id}</span></button></li>)}</ul>}</div>
+            )}</Card>
+          <Card><h2 className="mb-3 font-semibold text-navy-900">2. Medicines</h2>
+            <div className="relative"><Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" /><Input className="pl-9" placeholder="Brand, generic, manufacturer, composition, strength, form…" aria-label="Search medicine catalog" value={mq} onChange={(e) => setMq(e.target.value)} /></div>
+            {mq && <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200 text-sm">{medHits.length === 0 && <li className="p-3 text-slate-500">No matching medicines.</li>}{medHits.map((p) => <li key={p.id} className="flex items-center justify-between gap-2 p-3"><span>{p.brand} <span className="text-slate-500">· {p.generic} {p.strength} · {manufacturerName(p.manufacturerId, mfrs)}</span></span><Button size="sm" variant="outline" onClick={() => addMed(p)}><Plus className="h-3.5 w-3.5" />Add</Button></li>)}</ul>}
+            <div className="mt-4 space-y-3">{meds.length === 0 && <p className="text-sm text-slate-500">No medicines added yet.</p>}
+              {meds.map((m) => (
+                <div key={m.id} className="rounded-lg border border-slate-200 p-3"><div className="mb-2 flex items-center justify-between"><strong className="text-sm">{m.name}</strong><button aria-label={`Remove ${m.name}`} className="cursor-pointer text-red-600" onClick={() => setMeds(meds.filter((x) => x.id !== m.id))}><Trash2 className="h-4 w-4" /></button></div>
+                  <div className="grid gap-2 sm:grid-cols-2">{([['strength', 'Strength'], ['dosage', 'Dosage instructions'], ['frequency', 'Frequency'], ['duration', 'Duration'], ['quantity', 'Quantity']] as const).map(([k, label]) => <Field key={k} label={label}><Input aria-label={`${label} for ${m.name}`} type={k === 'quantity' ? 'number' : 'text'} value={String(m[k])} onChange={(e) => setMed(m.id, k, e.target.value)} /></Field>)}</div></div>))}</div></Card>
+          <Card className="space-y-3"><h2 className="font-semibold text-navy-900">3. Diagnosis & notes</h2>
+            <Field label="Diagnosis"><Input value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} /></Field>
+            <Field label="Clinical notes"><Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+            <Button onClick={openPreview}>Preview prescription</Button></Card>
+        </div>
+        <div className="hidden lg:block">{meds.length === 0 ? <EmptyState title="Live preview" message="Add medicines to see the prescription layout." /> : <PrescriptionPreview rx={{ id: 'draft', patientId: patientId || 'pt1', doctorId: doc.id, doctorName: doc.name, date: DEMO_TODAY, diagnosis, notes, medicines: meds, status: 'verified', source: 'doctor' }} />}</div>
+      </div>
+      <Modal open={!!preview} onClose={() => setPreview(null)} title="Prescription preview" wide>
+        {preview && <><PrescriptionPreview rx={preview} /><div className="mt-4 flex justify-end gap-2"><Button variant="outline" onClick={() => setPreview(null)}>Edit</Button><Button onClick={issue}>Issue prescription</Button></div></>}
+      </Modal>
+    </div>
+  )
+}
